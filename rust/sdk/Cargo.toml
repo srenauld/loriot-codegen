@@ -1,0 +1,14 @@
+[package]
+name = "loriot-rust-sdk"
+version = "1.0.0"
+authors = ["OpenAPI Generator team and contributors"]
+
+[dependencies]
+reqwest = "*"
+serde = "*"
+futures = "0.1.23"
+loriot_api = { path = "../api" }
+futures-locks = "*"
+
+[dev-dependencies]
+tokio = "*"

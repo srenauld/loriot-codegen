@@ -1,0 +1,4219 @@
+openapi: 3.0.0
+info:
+  title: Public NWK REST API
+  description: Public LORIOT Network Server NWK REST API documentation
+  version: '5.0'
+  termsOfService: 'https://loriot.io/terms-of-service.html'
+  license:
+    name: LORIOT 2019 Copyright
+
+servers:
+  - url: https://{server}.loriot.io
+    variables:
+      server:
+        default: eu1
+        description: Server to do the API manual test
+
+tags:
+  - name: user
+    description: User CRUD API for the current user
+  - name: application
+    description: Application CRUD API for the current user
+  - name: application output
+    description: Application output type
+  - name: devices
+    description: Application devices CRUD API for the current user
+  - name: multicast device
+    description: Application multicast device CRUD API for the current user
+  - name: network
+    description: Networks API (by user)
+  - name: gateway
+    description: Gateway API (by user)
+  - name: gateway channel plans
+    description: Gateway channel plans API
+
+paths:
+  /1/nwk/apps:
+    get:
+      tags:
+        - application
+      summary: Retrieve user applications using pagination
+
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/filter'
+        - $ref: '#/components/parameters/sort'
+
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success, applications usage returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginationApps'
+    post:
+      tags:
+        - application
+      summary: Create new application
+
+      requestBody:
+        description: New application to register
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - capacity
+              properties:
+                title:
+                  type: string
+                  description: Application title
+                  example: Sample application
+                capacity:
+                  type: number
+                  description: Maximum amount of devices to register in the application
+                  example: 10
+                visibility:
+                  description: Resource visibility to other members of user's organization
+                  type: string
+                  enum:
+                    - 'public'
+                    - 'private'
+                  example: 'private'
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success, application created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+  /1/nwk/apps/usage:
+    get:
+      tags:
+        - application
+      summary: Retrieve user applications usage
+
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success, applications usage returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apps:
+                    type: number
+                    description: number of applications used
+                    example: 2
+                  capacity:
+                    type: number
+                    description: Sum of device capacity between all applications
+                    example: 50
+                  mcastCapacity:
+                    type: number
+                    description: multicast capacity
+                    example: 1
+                  mcastUsed:
+                    type: number
+                    description: multicast used
+                    example: 0
+                  used:
+                    type: number
+                    description: devices in use between all applications
+                    example: 9
+                  _id:
+                    example: null
+  /1/nwk/apps/output:
+    get:
+      tags:
+        - application output
+      summary: Retrieve list of compatible output types
+      responses:
+        200:
+          description: Success, application outputs returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    location:
+                      type: string
+                      description: local or third party
+                      example: "local"
+                    title:
+                      type: string
+                      description: output title
+                      example: "TLS Socket"
+                    _id:
+                      type: string
+                      description: output type identificator
+                      example: "tls"
+  /1/nwk/apps/output/{OUTPUTID}:
+    get:
+      tags:
+        - application output
+      summary: Retrieve detailed information about application output
+
+      parameters:
+        - $ref: '#/components/parameters/OUTPUTID'
+
+      responses:
+        200:
+          description: Success, application output data type details returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutputDetail'
+  /1/nwk/app/{APPID}/outputs:
+    get:
+      tags:
+        - application output
+      summary: Retrieve application data output type definition for each data output in use
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppDataOutputType'
+    post:
+      tags:
+        - application output
+      summary: Add new Data Output to current application
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                osetup:
+                  type: object
+                  properties:
+                    request:
+                      type: object
+                      properties:
+                        token:
+                          type: string
+                          example: token
+                output:
+                  type: string
+                  example: "tls"
+      responses:
+        500:
+          description: Internal error
+        403:
+          description: Not enough permissions. Not enough capacity.
+        400:
+          description: Bad request
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OutputDetail'
+  /1/nwk/app/{APPID}/outputs/{OUTPUTID}:
+    delete:
+      tags:
+        - application output
+      summary: Remove selected Data Output by its ID
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/OUTPUTID'
+
+      responses:
+        500:
+          description: Internal error
+        403:
+          description: Not enough permissions.
+        400:
+          description: Bad request
+        204:
+          description: Data Output successfully removed
+  /1/nwk/app/{APPID}/mcast-device:
+    get:
+      tags:
+        - multicast device
+      summary: Only for users from tier 2. Returns all multicast devices for current application.
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/filter'
+        - $ref: '#/components/parameters/sort'
+      responses:
+        400:
+          description: Invalid body
+        403:
+          description: Not enough tier
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/mcastdev'
+    post:
+      tags:
+        - multicast device
+      summary: Create new multicast device. Only for users from tier 2. Any future downlink message will be sent to all user's gateways.
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Mcast'
+      responses:
+        400:
+          description: Invalid body
+        403:
+          description: Not enough tier
+        200:
+          description: Success, multicast device created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/mcastdev'
+  /1/nwk/app/{APPID}/mcast-device/{mcastEUI}:
+    put:
+      tags:
+        - multicast device
+      summary: Only for users from tier 2. Update multicast device properties.
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Mcast'
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/mcastEUI'
+      responses:
+        400:
+          description: Invalid body
+        403:
+          description: Not enough tier
+        204:
+          description: Success, multicast devices properties updated (from the body)
+    delete:
+      tags:
+        - multicast device
+      summary: Only for users from tier 2. Deletes a multicast device
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/mcastEUI'
+
+      responses:
+        400:
+          description: Invalid body
+        403:
+          description: Not enough tier
+        204:
+          description: Success, multicat device removed
+  /1/nwk/app/{APPID}/mcastdevlimit:
+    post:
+      tags:
+        - multicast device
+      summary: Update multicast device.
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mcastdevlimit:
+                  type: number
+                  description: multicast device limit
+                  example: 3
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+
+      responses:
+        400:
+          description: Invalid body
+        403:
+          description: Not enough tier
+        200:
+          description: Success, multicast device limit changed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mcastdevlimit:
+                    type: number
+                    description: multicast device limit
+                    example: 3
+  /1/nwk/app/{APPID}/app:
+    get:
+      tags:
+        - application
+      summary: Retrieve application properties by its ID
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+    post:
+      tags:
+        - application
+      summary: Modify application properties
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+
+      requestBody:
+        description: Application properties to update
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                canotaa:
+                  type: boolean
+                  description: It requires tier 2
+                ogwinfo:
+                  type: string
+                  enum:
+                    - none
+                    - rssi
+                    - gwid
+                    - full
+                  description: It requires tier 2
+                overbosity:
+                  type: string
+                  enum:
+                    - min
+                    - full
+                  description: It requires tier 2
+                orx:
+                  type: boolean
+                  description: It requires tier 2
+                joinServerId:
+                  type: string
+                  description: It requires tier 2. Join Server ID to use. If not string, object with main properties. Going to change.
+                publishAppSKey:
+                  type: boolean
+                  description: It requires tier 2
+                joinrxw:
+                  type: integer
+                  enum:
+                    - 1
+                    - 2
+                  description: Join requests RX window
+                customPropertiesUplinkDataMessage:
+                  type: boolean
+                  description: >
+                    Status flag to enable/disable sending custom properties to be
+                    published for each uplink data message
+                visibility:
+                  type: string
+                  enum:
+                    - 'public'
+                    - 'private'
+                  description: Resource visibility to other members of user's organization
+                  example: 'private'
+      responses:
+        400:
+          description: Invalid body
+        403:
+          description: Not enough tier
+        200:
+          description: Success, properties update (from the body)
+    delete:
+      tags:
+        - application
+      summary: Remove application, application statistics, application LoRaWAN data, enqueued downlink messages and devices registered
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        204:
+          description: Success, application, application statistics, application LoRaWAN data, enqueued downlink messages and devices removed
+
+  /1/nwk/app/{APPID}/log:
+    get:
+      tags:
+        - application
+      summary: Retrieve application events logs (using pagination by default)
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - in: query
+          name: 'filetype'
+          description: Retrieve all logs in JSON format (no pagination)
+          required: false
+          schema:
+            type: string
+          example: 'json'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/filter'
+        - $ref: '#/components/parameters/sort'
+
+      responses:
+        403:
+          description: Not enough permissions (only from tier 2)
+        500:
+          description: Internal error
+        200:
+          description: Success, paged logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: number
+                    description: The amount of registers in the response
+                    example: 15
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ts:
+                          type: string
+                          format: date
+                          description: Log date
+                          example: '2017-07-31 10:15:27.341Z'
+                        sev:
+                          type: number
+                          description: Severity enumeration value
+                          example: 6
+                        evt:
+                          type: string
+                          description: Log event name
+                          example: 'DATA_DOWN'
+                        msg:
+                          type: string
+                          description: Log message
+                          example: 'Server started succesfully'
+                        metadata:
+                          type: object
+                          description: Log metadata properties
+  /1/nwk/app/{APPID}/title:
+    post:
+      tags:
+        - application
+      summary: Change the title of the application
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Valencia Devices"
+
+      responses:
+        500:
+          description: Internal error
+        403:
+          description: Not enough permissions. Not enough capacity.
+        400:
+          description: Bad request
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  title:
+                    type: string
+                    description: application title
+                    example: "Valencia Devices"
+  /1/nwk/app/{APPID}/capacity:
+    post:
+      tags:
+        - application
+      summary: Change the allocated capacity of the application
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dec:
+                  type: number
+                  example: 30
+
+
+      responses:
+        500:
+          description: Internal error
+        403:
+          description: Not enough permissions. Not enough capacity.
+        400:
+          description: Bad request
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dec:
+                    type: number
+                    description: decrement capacity (multiples of 10)
+                    example: 20
+                  inc:
+                    type: number
+                    description: increment capacity (multiples of 10)
+                    example: 10
+  /1/nwk/app/{APPID}/traffic_{FREQ}:
+    get:
+      tags:
+        - application
+      summary: Retrieve uplink and downlink data traffic statistics for the application
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/FREQ'
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dnfcn:
+                    type: number
+                    description: number of frames downlink
+                    example: 10
+                  dnlen:
+                    type: number
+                    description: number of bytes downlink
+                    example: 20
+                  fcn:
+                    type: number
+                    description: number of frames uplink
+                    example: 33
+                  len:
+                    type: number
+                    description: number of bytes uplink
+                    example: 40
+                  lst:
+                    type: number
+                    description: number of lost frames
+                    example: 25
+                  _id:
+                    type: string
+                    description: record identifier in RFC
+                    example: "2019-06-25T10:00:00.000Z"
+                  downlink:
+                    $ref: '#/components/schemas/UpDownLink'
+                  uplink:
+                    $ref: '#/components/schemas/UpDownLink'
+  /1/nwk/app/{APPID}/last_data:
+    get:
+      tags:
+        - application
+      summary: Last 25 frames received by the application
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LastData'
+  /1/nwk/app/{APPID}/token:
+    get:
+      tags:
+        - application
+      summary: Retrieves application token
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  description: secret token shared
+                  example: "vgEAChAAAA1kZXxubG9yaW90Lmlv11qYfbCzXubdodgeDBuFzw=="
+    post:
+      tags:
+        - application
+      summary: Generate Authentication Token
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+
+      responses:
+        500:
+          description: Internal error
+        403:
+          description: Not enough permissions. Not enough capacity.
+        400:
+          description: Bad request
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: secret token shared
+                    example: "vgEAnwAAAA1kFXYubG9yAW90LmlvDCwciqH4reZkYF126nLx_g=="
+  /1/nwk/app/{APPID}/token/{TOKEN}:
+    post:
+      tags:
+        - application
+      summary: Generate Authentication Token
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/TOKEN'
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+
+      responses:
+        500:
+          description: Internal error
+        403:
+          description: Not enough permissions. Not enough capacity.
+        400:
+          description: Bad request
+        204:
+          description: Success
+  /1/nwk/app/{APPID}/devices:
+    get:
+      tags:
+        - devices
+      summary: Retrieve paged devices of the application
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/filter'
+        - $ref: '#/components/parameters/sort'
+
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success, devices retrieved using pagination
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginationDevices'
+    post:
+      tags:
+        - devices
+      summary: Generate new LoRaWAN device parameters
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+
+      requestBody:
+        description: |
+          Generates new device parameters with an optional user-defined Device EUI
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deveui:
+                  type: string
+                  description: global ID in IEEE EUI64 address space that uniquely identifies the end-device.
+                  example: "1234567812345654"
+
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success, device registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+  /1/nwk/app/{APPID}/devices/abp:
+    post:
+      tags:
+        - devices
+      summary: Register new LoRaWAN ABP device.
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+
+      requestBody:
+        description: New device to ABP register
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - deveui
+                - nwkskey
+                - devaddr
+                - seqno
+                - seqdn
+              properties:
+                title:
+                  type: string
+                  description: Device title, EUI by default
+                  example: Foo device
+                description:
+                  type: string
+                  description: Device description, empty by default
+                  example: Foo device custom description
+                deveui:
+                  type: string
+                  format: hex
+                  description: |
+                    DevEUI is a global end-device ID in IEEE EUI64 address space
+                    that uniquely identifies the end-device.
+                  example: C6E108BBC65B50FB35D1503DF151A668
+                nwkskey:
+                  type: string
+                  format: hex
+                  example: F09EA95944678943BCB11299EAF9ABCF
+                  description: |
+                    NwkSKey is a network session key specific for the end-device.
+                    It is used by both the network server and the end-device to
+                    calculate and verify the MIC (message integrity code) of all
+                    data messages to ensure data integrity.
+                devaddr:
+                  type: string
+                  format: hex
+                  example: F09EA95944678943BCB11299EAF9ABCF
+                  description: |
+                    DevAddr consists of 32 bits identifies the end-device within
+                    the current network.
+                seqno:
+                  type: number
+                  example: 128570
+                  description: |
+                    Uplink sequence number to initialize the device.
+                seqdn:
+                  type: number
+                  example: 1495
+                  description: |
+                    Downlink sequence number to initialize the device.
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success, device registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+  /1/nwk/app/{APPID}/devices/otaa:
+    post:
+      tags:
+        - devices
+      summary: Register new LoRaWAN OTAA device.
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+
+      requestBody:
+        description: New device to OTAA register.
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - devclass
+                - appkey
+                - deveui
+                - appeui
+              properties:
+                title:
+                  type: string
+                  description: Device title, EUI by default
+                  example: Foo device
+                description:
+                  type: string
+                  description: Device description, empty by default
+                  example: Foo device custom description
+                devclass:
+                  type: string
+                  description: Device LoRaWAN class type, 'A' by default.
+                  example: A
+                appkey:
+                  type: string
+                  format: hex
+                  description: |
+                    AES-128 application key specific for the end-device that is
+                    assigned by the application owner to the end-device and most
+                    likely derived from an application-specific root key exclusively
+                    known to and under the control of the application provider.
+                  example: 457A03F9B60B3D5282A44D65B5BD64DB
+                deveui:
+                  type: string
+                  format: hex
+                  description: |
+                    Required for OTAA register or to enroll new device.
+                    DevEUI is a global end-device ID in IEEE EUI64 address space
+                    that uniquely identifies the end-device.
+                  example: C6E108BBC65B50FB35D1503DF151A668
+                appeui:
+                  type: string
+                  format: hex
+                  description: |
+                    AppEUI is a global application ID in IEEE EUI64 address space
+                    that uniquely identifies the application provider (i.e., owner)
+                    of the end-device.
+                  example: 99A3B4F457EA9357
+                nwkskey:
+                  type: string
+                  format: hex
+                  example: F09EA95944678943BCB11299EAF9ABCF
+                  description: |
+                    NwkSKey is a network session key specific for the end-device.
+                    It is used by both the network server and the end-device to
+                    calculate and verify the MIC (message integrity code) of all
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success, device registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+  /1/nwk/app/{APPID}/device/{DEVEUI}/tags/:
+    get:
+      tags:
+        - devices
+      summary: Retrieve tags assigned to device
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+      responses:
+        400:
+          description: Invalid body
+        200:
+          description: Success, devices tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/devicetag'
+
+  /1/nwk/app/{APPID}/device/{DEVEUI}/tag/{TAGNAME}:
+    post:
+      tags:
+        - devices
+      summary: Add new tag to device
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+        - $ref: '#/components/parameters/TAGNAME'
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tagname:
+                  type: string
+      responses:
+        400:
+          description: Invalid tag
+        204:
+          description: Success, device tag added to device
+    delete:
+      tags:
+        - devices
+      summary: Remove tag from device
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+        - $ref: '#/components/parameters/TAGNAME'
+
+      responses:
+        400:
+          description: Invalid tag
+        204:
+          description: Success, tag removed from device
+  /1/nwk/app/{APPID}/device/{DEVEUI}:
+    get:
+      tags:
+        - devices
+      summary: Retrieve device properties
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success, list of device properties
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+    post:
+      tags:
+        - devices
+      summary: Update device properties
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+
+      requestBody:
+        description: Update one or more of the device properties
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rxw:
+                  type: number
+                  description: Receive window to be used after uplink transmission
+                  example: 1
+                seqrelax:
+                  type: boolean
+                  description: Flag to relax or strict uplink seqno check
+                  example: false
+                devclass:
+                  type: string
+                  description: Device LoRaWAN class type
+                  example: "A"
+                adrMin:
+                  type: number
+                  description: Minimum data rate to use for device when ADR is enabled
+                  example: 0
+                adrMax:
+                  type: number
+                  description: Maximum data rate to use for device when ADR is enabled
+                  example: 7
+                adrFix:
+                  type: number
+                  description: Fixed value for data rate when ADR is enabled
+                title:
+                  type: string
+                  description: Device title, EUI by default
+                  example: Foo device
+                description:
+                  type: string
+                  description: Device description, empty by default
+                  example: Foo device important description
+                seqdnreset:
+                  type: boolean
+                  description: Flag to reset sequence downlink when old uplink seqno received
+                  example: true
+                canSend:
+                  type: boolean
+                  description: Enable/disable downlinks for device
+                  example: true
+                canSendPayload:
+                  type: boolean
+                  description: Enable/disable payload in a downlink for device
+                  example: true
+                canSendFOPTS:
+                  type: boolean
+                  description: Enable/disable MAC in a downlink for device
+                  example: true
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success, device properties updated. Same body payload is returned.
+    delete:
+      tags:
+        - devices
+      summary: Remove device
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success, device removed successfully
+  /1/nwk/app/{APPID}/device/{DEVEUI}/mac-commands:
+    get:
+      tags:
+        - devices
+      summary: Retrieve paged history of MAC commands sent/received by device
+
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/filter'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+        - name: 'command'
+          in: query
+          description: MAC command name to filter
+          required: false
+          schema:
+            type: string
+
+      responses:
+        400:
+          description: Invalid body
+        200:
+          description: Success, devices tags
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/deviceMacCommandPaged'
+  /1/nwk/app/{APPID}/device/{DEVEUI}/log:
+    get:
+      tags:
+        - devices
+      summary: Retrieve paged event log for the device
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+        - in: query
+          name: 'filetype'
+          description: Retrieve all logs in JSON format (no pagination)
+          required: false
+          schema:
+            type: string
+          example: 'json'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/filter'
+        - $ref: '#/components/parameters/sort'
+      responses:
+        403:
+          description: Not enough permissions (only from tier 2)
+        500:
+          description: Internal error
+        200:
+          description: Success, paged logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: number
+                    description: The amount of registers in the response
+                    example: 15
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ts:
+                          type: string
+                          format: date
+                          description: Log date
+                          example: '2017-07-31 10:15:27.341Z'
+                        sev:
+                          type: number
+                          description: Severity enumeration value
+                          example: 6
+                        evt:
+                          type: string
+                          description: Log event name
+                          example: 'DATA_DOWN'
+                        msg:
+                          type: string
+                          description: Log message
+                          example: 'Server started succesfully'
+                        metadata:
+                          type: object
+                          description: Log metadata properties
+  /1/nwk/app/{APPID}/device/{DEVEUI}/radio_{FREQ}:
+    get:
+      tags:
+        - devices
+      summary: Retrieve device's radio history statistics
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+        - $ref: '#/components/parameters/FREQ'
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    date:
+                      type: string
+                      format: date
+                      description: Last value counters by date
+                      example: '2017-07-31T10:00:00.000Z'
+                    gws:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          dnfcn:
+                            type: number
+                            description: number of frames downlink
+                            example: 0
+                          fcn:
+                            type: number
+                            description: number of frames uplink
+                            example: 13
+                          gweui:
+                            type: string
+                            description: gateway identifier
+                            example: "B0D5CCFFFFFD58D6"
+                          lst:
+                            type: number
+                            description: number of lost frames
+                            example: 7
+                          rssi:
+                            type: number
+                            description: signal strength in dBm
+                            example: -45.07692307692308
+                          snr:
+                            type: number
+                            description: signal-to-noise ratio in dB
+                            example: 8.561538461538461
+  /1/nwk/app/{APPID}/device/{DEVEUI}/traffic_{FREQ}:
+    get:
+      tags:
+        - devices
+      summary: Retrieve device's traffic history statistics
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+        - $ref: '#/components/parameters/FREQ'
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    dnfcn:
+                      type: number
+                      description: number of frames downlink
+                      example: 0
+                    fcn:
+                      type: number
+                      description: number of frames uplink
+                      example: 13
+                    lst:
+                      type: number
+                      description: number of lost frames
+                      example: 7
+                    _id:
+                      type: string
+                      description: Record identifier
+                      example: "2019-06-25T16:00:00.000Z"
+  /1/nwk/app/{APPID}/device/{DEVEUI}/last_data:
+    get:
+      tags:
+        - devices
+      summary: Retrieve last 10 data frames received from the device
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LastDataDevice'
+  /1/nwk/app/{APPID}/device/{DEVEUI}/appkey:
+    post:
+      tags:
+        - devices
+      summary:  |
+        Set LoRaWAN AppKey for the device.
+        If request body is empty, a key will be generated.
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                appkey:
+                  type: string
+                  description: AES128 Key
+                  example: 94937962B5720B26F0370F3DDC174E44
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  appkey:
+                    type: string
+                    description: Application Key (Device Key)
+                    example: 94937962B5720B26A0370F3DDC174E44
+    delete:
+      tags:
+        - devices
+      summary: Delete device's AppKey
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        204:
+          description: Success
+  /1/nwk/app/{APPID}/device/{DEVEUI}/appskey:
+    post:
+      tags:
+        - devices
+      summary:  |
+        Set LoRaWAN AppSKey for the device.
+        If request body is empty, a key will be generated.
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                appskey:
+                  type: string
+                  description: AES128 Key
+                  example: 94937962B5720B26F0370F3DDC174E44
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  appskey:
+                    type: string
+                    description: Application Session Key
+                    example: 94937962B5720B26A0370F3DDC174E44
+    delete:
+      tags:
+        - devices
+      summary: Delete device's AppSKey
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        204:
+          description: Success
+  /1/nwk/app/{APPID}/device/{DEVEUI}/dutycycle:
+    post:
+      tags:
+        - devices
+      summary: Set LoRaWAN duty cycle
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dutycycle:
+                  type: number
+                  description: Numeric values from 0 (unlimited) to 255 (device disabled).
+                  example: 60
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  appskey:
+                    type: string
+                    description: Application Session Key
+                    example: 94937962B5720B26A0370F3DDC174E44
+  /1/nwk/app/{APPID}/device/{DEVEUI}/seqno:
+    post:
+      tags:
+        - devices
+      summary: Reset uplink sequence number (LoRaWAN FCntUp)
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dutycycle:
+                  description: Empty object
+                  example: {}
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        204:
+          description: Success
+  /1/nwk/app/{APPID}/device/{DEVEUI}/seqdn:
+    post:
+      tags:
+        - devices
+      summary: Resets downlink sequence number (LoRaWAN FCntDown).
+
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dutycycle:
+                  description: Empty object
+                  example: {}
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        204:
+          description: Success
+  /1/nwk/app/{APPID}/device/{DEVEUI}/flushqueue:
+    post:
+      tags:
+        - devices
+      summary: Clear all queued downlink messages for the device
+      parameters:
+        - $ref: '#/components/parameters/APPID'
+        - $ref: '#/components/parameters/DEVEUI'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dutycycle:
+                  description: Empty object
+                  example: {}
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        204:
+          description: Success
+
+
+  /1/nwk/user/email-notification:
+    get:
+      tags:
+        - user
+      summary: Retrieve current user email notification
+
+      responses:
+        200:
+          description: User email notification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEmailNotification'
+    put:
+      tags:
+        - user
+      summary: Modify the user email notification
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: 
+                - emailNotification
+              properties:
+                emailNotification:
+                  description: New user email notification
+                  type: string
+      responses:
+        200:
+          description: User email notification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEmailNotification'
+    delete:
+      tags:
+        - user
+      summary: Delete the user email notification. Default user email will be used for notifications.
+
+      responses:
+        204:
+          description: Email notification removed succesfully
+  /1/nwk/user/webhook-notification:
+    get:
+      tags:
+        - user
+      summary: Retrieve current user webhook notification
+
+      responses:
+        200:
+          description: User webhook notification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWebhookNotification'
+    put:
+      tags:
+        - user
+      summary: Modify the user webhook notification
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - emailNotification
+              properties:
+                emailNotification:
+                  description: New user webhook notification
+                  type: string
+      responses:
+        200:
+          description: User webhook notification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWebhookNotification'
+    delete:
+      tags:
+        - user
+      summary: Delete the user webhook notification. Default user webhook will be used for notifications.
+
+      responses:
+        204:
+          description: Webhook notification removed succesfully
+  /1/nwk/user/email:
+    put:
+      tags:
+        - user
+      summary: Modify the user **email** if the email address is not used in a different account
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  description: New user email
+                  type: string
+      responses:
+        400:
+          description: Invalid request (email used)
+        204:
+          description: Confirmation email has been updated succesfully
+  /1/nwk/user/alerts:
+    post:
+      tags:
+        - user
+      summary: Mechanism for notifying users about their gateway’s status changes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: boolean
+
+      responses:
+        204:
+          description: Success, alerts changed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: boolean
+                    description: Alerts configuration
+
+        400:
+          description: Invalid parameters
+  /1/nwk/user:
+    get:
+      tags:
+        - user
+      summary: Retrieve current user information
+
+      responses:
+        200:
+          description: Success, user information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        404:
+          description: Not found
+  /1/nwk/user/usage:
+    get:
+      tags:
+        - user
+      summary: Detailed usage of user resources and his limits
+
+      responses:
+        400:
+          description: Invalid request
+        200:
+          description: User resources and limits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apps:
+                    type: number
+                    description: Number of apps in use
+                    example: 1
+                  devices:
+                    type: number
+                    description: Number of signed devices
+                    example: 10
+                  devlimit:
+                    type: number
+                    description: Max amount of devices
+                    example: 10
+                  devuse:
+                    type: number
+                    description: Number of devices in use
+                    example: 0
+                  gateways:
+                    type: number
+                    description: Gateways in use
+                    example: 2
+                  gwlimit:
+                    type: number
+                    description: Limit of gateways in account
+                    example: 50
+                  mcastdevices:
+                    type: number
+                    description: Limit of multicast devices in account
+                    example: 0
+                  mcastdevuse:
+                    type: number
+                    description: Multicast devices in use
+                    example: 0
+
+  /1/nwk/network/{roamingid}:
+    get:
+      tags:
+        - network
+      summary: Retrieve Network details (without gateways information)
+      parameters:
+        - $ref: '#/components/parameters/roamingid'
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success gateway network
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayNetwork'
+    delete:
+      tags:
+        - network
+      summary: Remove the Gateway Network
+
+      parameters:
+        - $ref: '#/components/parameters/roamingid'
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        204:
+          description: Gateway Network removed succesfully
+    put:
+      tags:
+        - network
+      summary: Modify any network detail
+      parameters:
+        - $ref: '#/components/parameters/roamingid'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GatewayNetwork'
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success
+  /1/nwk/network/{roamingid}/gateways:
+    get:
+      tags:
+        - network
+      summary: Retrieve network's gateways
+
+      parameters:
+        - $ref: '#/components/parameters/roamingid'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/filter'
+        - $ref: '#/components/parameters/sort'
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success, gateways for current network using pagination
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: number
+                    description: Amount of gateways for current network
+                    example: 1
+                  gateways:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Gateway'
+    post:
+      tags:
+        - network
+      summary: Register new gateway and add it to a network
+
+      parameters:
+        - $ref: '#/components/parameters/roamingid'
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Gateway to register and add it to current gateway network
+              required:
+                - base
+                - model
+                - MAC
+                - bus
+                - concentrator
+                - card
+                - location
+              properties:
+                base:
+                  type: string
+                  description: base / manufacturer of the gateway
+                  example: 'linux'
+                model:
+                  type: string
+                  description: model of the gateway
+                  example: 'x64'
+                MAC:
+                  type: string
+                  description: Gateway MAC
+                  example: '70:76:FF:01:03:84'
+                bus:
+                  type: string
+                  description: bus used to connect the concentrator
+                  example: 'USB'
+                concentrator:
+                  type: string
+                  description: model of the concentrator
+                  example: 'sx1301_ref'
+                card:
+                  type: number
+                  example: 1
+                location:
+                  $ref: '#/components/schemas/Location'
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        400:
+          description: Invalid options in JSON body request parameters
+        200:
+          description: Success, gateways registered and added to current gateway network
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  _id:
+                    type: string
+                    description: Gateway EUI ID
+                    example: 'A5AEE3B4FB9D8376'
+                  MAC:
+                    type: string
+                    description: Gateway MAC
+                    example: '70:76:FF:01:03:84'
+                  EUI:
+                    type: string
+                    description: Gateway EUI
+                    example: '70-76-FF-FF-FF-01-03-84'
+                  base:
+                    type: string
+                    description: base / manufacturer of the gateway
+                    example: 'linux'
+                  model:
+                    type: string
+                    description: model of the gateway
+                    example: 'x64'
+  /1/nwk/network/{roamingid}/gateway/{gweui}/move/{targetroamingid}:
+    put:
+      tags:
+        - network
+      summary: Move gateway from source gateway network to target gateway network. Both gateway networks must belong to current user.
+      parameters:
+        - $ref: '#/components/parameters/roamingid'
+        - $ref: '#/components/parameters/gweui'
+        - $ref: '#/components/parameters/targetroamingid'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: boolean
+      responses:
+        204:
+          description: Gateway has been moved succesfully
+        400:
+          description: Invalid request
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+  /1/nwk/network/{roamingid}/location:
+    put:
+      tags:
+        - network
+      summary: Modify the network location
+
+      parameters:
+        - $ref: '#/components/parameters/roamingid'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                address:
+                  type: string
+                  description: network address
+                  example: "Calle Padre Aniceto, 61"
+                city:
+                  type: string
+                  description: network city address
+                  example: "Pardesivil"
+                country:
+                  type: string
+                  description: network country
+                  example: "ES"
+                zip:
+                  type: string
+                  description: network ZIP
+                  example: "24848"
+      responses:
+        403:
+          description: Not enough permissions
+        400:
+          description: Invalid request
+        204:
+          description: Gateway network has been updated succesfully
+  /1/nwk/network/{roamingid}/visibility:
+    put:
+      tags:
+        - network
+      summary: Modify the network **visibility** and the gateways visbility inside the network
+      parameters:
+        - $ref: '#/components/parameters/roamingid'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: New visibility value
+              required:
+                - visibility
+              properties:
+                visibility:
+                  type: string
+                  enum:
+                    - 'public'
+                    - 'private'
+                  description: Resource visibility to other members of user's organization
+                  example: 'private'
+      responses:
+        403:
+          description: Not enough permissions
+        400:
+          description: Invalid request
+        204:
+          description: Gateway network has been updated succesfully
+  /1/nwk/networks:
+    get:
+      tags:
+        - network
+      summary: Retrieve all gateway networks for current user
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/filter'
+        - $ref: '#/components/parameters/sort'
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success, paged gateway networks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: number
+                    description: Amount of networks for current user
+                  networks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GatewayNetwork'
+    post:
+      tags:
+        - network
+      summary: Creates new Gateway Network for current user
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: New Gateway Network to register
+              required:
+                - name
+                - address
+                - city
+                - zip
+                - country
+              properties:
+                name:
+                  type: string
+                  description: custom Gateway Network title name
+                  example: 'Valencia gateways'
+                address:
+                  type:  string
+                  description: Gateway address
+                  example: 'Langstrasse 104-106'
+                city:
+                  type: string
+                  description: Gateway city
+                  example: 'Zürich, Switzerland'
+                zip:
+                  type: string
+                  description: Gateway ZIP
+                  example: '8004'
+                country:
+                  type: string
+                  description: ISO country code
+                  example: 'CH'
+                baidu:
+                  type: string
+                  description: Chinese address
+                  example: ''
+                lat:
+                  type: number
+                  description: Custom gateway GPS lat (bypass back-end location lookup)
+                  example: 47.3786471
+                lon:
+                  type: number
+                  description: Custom gateway GPS lon (bypass back-end location lookup)
+                  example: 8.5272487
+                visibility:
+                  type: string
+                  enum:
+                    - 'public'
+                    - 'private'
+                  description: Resource visibility to other members of user's organization
+                  example: 'private'
+      responses:
+        403:
+          description: Not enough permissions on the gateway
+        500:
+          description: Internal error
+        200:
+          description: Success, paged logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayNetwork'
+
+  /1/nwk/gateways:
+    get:
+      tags:
+        - gateway
+      summary: Retrieve user gateways using pagination
+
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/filter'
+        - $ref: '#/components/parameters/sort'
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success, gateways returned by selected pagination
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: number
+                    description: Page number for the pagination response
+                    example: 1
+                  perPage:
+                    type: number
+                    description: Amount of applications to retrieve per page
+                    example: 10
+                  total:
+                    type: number
+                    description: Amount of applications to iterate using pagination
+                    example: 18
+                  apps:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Gateway'
+  /1/nwk/gateway/{gweui}:
+    get:
+      tags:
+        - gateway
+      summary: Retrieve user gateway
+
+      parameters:
+        - $ref: '#/components/parameters/gweui'
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success, gateway
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Gateway'
+    post:
+      tags:
+        - gateway
+      summary: Update gateway properties
+
+      parameters:
+        - $ref: '#/components/parameters/gweui'
+
+      requestBody:
+        description: Set any of next properties to update gateway
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ignore:
+                  type: boolean
+                  description: ignore data from this gateway (for debugging purposes)
+                  example: false
+                title:
+                  type: string
+                  description: custom gateway title updated by user
+                  example: 'Kerlink V2'
+                txgain:
+                  type: number
+                  description: Transmission gateway gain
+                  example: true
+                alerts:
+                  type: boolean
+                  description: enable / disable alerts for this gateway
+                  example: true
+                location:
+                  $ref: '#/components/schemas/Location'
+                aes_key:
+                  type: string
+                  description: AES key used for gateways LoRaWAN version 2
+                trackFiles:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      description: Enable track gateway files
+                      example: true
+                    useGatewayModelList:
+                      type: boolean
+                      description: Enable to track default files declared in gateway model
+                      example: false
+                    files:
+                      type: array
+                      description: Custom list of files to track in the gateway
+                      items:
+                        type: object
+                        properties:
+                          filePath:
+                            type: string
+                            description: Full path of file to track
+                            example: '/var/log/loriot-1.log'
+                          interval:
+                            type: number
+                            format: integer
+                            description: Amount of time between each file read (seconds)
+                            example: 100
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success, gateway. Returns payload with updated properties.
+    delete:
+      tags:
+        - gateway
+      summary: Remove user gateway
+
+      parameters:
+        - $ref: '#/components/parameters/gweui'
+
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        204:
+          description: Success, gateway removed succesfully
+  /1/nwk/gateways/count:
+    get:
+      tags:
+        - gateway
+      summary: Count gateway networks for current user
+
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: number
+                    description: Count gateway networks
+                    example: 3
+  /1/nwk/gateway/{gweui}/ping:
+    post:
+      tags:
+        - gateway
+      summary: Update gateway properties
+
+      parameters:
+        - $ref: '#/components/parameters/gweui'
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: boolean
+
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        204:
+          description: Success, ping done
+  /1/nwk/gateway/{gweui}/restart:
+    post:
+      tags:
+        - gateway
+      summary: Restart gateway
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: boolean
+      parameters:
+        - $ref: '#/components/parameters/gweui'
+
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        204:
+          description: Success, gateway restarted
+  /1/nwk/gateway/{gweui}/traffic_{FREQ}:
+    get:
+      tags:
+        - gateway
+      summary: Retrieve gateway traffic
+
+      parameters:
+        - $ref: '#/components/parameters/gweui'
+        - $ref: '#/components/parameters/FREQ'
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  midnight:
+                    type: string
+                    format: date
+                    description: Midnight date from server local time
+                    example: '2017-12-31T23:00:00.000Z'
+                  traffic:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          format: date
+                          description: Accumulated counters by data date
+                          example: '2017-07-31T10:15:27.341Z'
+                        fcn:
+                          type: number
+                          description: Uplink frame counter
+                          example: 2
+                        sf:
+                          type: object
+                          description: >
+                            Counter by datarate, "sf" : { "7": 2 } (sf = spreading factor)
+                        freq:
+                          type: object
+                          description: >
+                            Accumulated counters by frequency, "freq": { "867900000": 1, "868100000": 1 }
+  /1/nwk/gateway/{gweui}/uptime:
+    get:
+      tags:
+        - gateway
+      summary: Retrieve gateway uptime data
+
+      parameters:
+        - $ref: '#/components/parameters/gweui'
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success, gateway
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  midnight:
+                    type: string
+                    description: date time
+                    example: "2019-06-28T00:00:00.000Z"
+                  sum:
+                    type: number
+                    description: total uptime
+                    example: 1156088443
+                  uptime:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        crtt:
+                          type: number
+                          description: computed round time trip (computed latency)
+                          example: 0
+                        date:
+                          type: string
+                          description: date time
+                          example: "2019-05-29T00:00:00.000Z"
+                        pong:
+                          type: number
+                          description: cumulated latency value
+                          example: 0
+                        rtt:
+                          type: number
+                          description: round trip time
+                          example: 0
+  /1/nwk/gateway/models:
+    get:
+      tags:
+        - gateway
+      summary: Retrieve gateway models
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/filter'
+        - $ref: '#/components/parameters/sort'
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        200:
+          description: Success, gateways returned by selected pagination
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: number
+                    description: Page number for the pagination response
+                    example: 1
+                  perPage:
+                    type: number
+                    description: Amount of applications to retrieve per page
+                    example: 10
+                  total:
+                    type: number
+                    description: Amount of applications to iterate using pagination
+                    example: 18
+                  apps:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Model'
+  /1/nwk/gateway/{gweui}/radioband:
+    post:
+      tags:
+        - gateway
+      summary: Change channel plan radioband
+
+      parameters:
+        - $ref: '#/components/parameters/gweui'
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                radioband:
+                  type: string
+                  example: AP865_India_RX2_SF8_866.500
+      responses:
+        400:
+          description: Bad request
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        204:
+          description: Success
+  /1/nwk/gateway/{gweui}/log:
+    get:
+      tags:
+        - gateway
+      summary: Retrieve gateway events log paged
+
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/filter'
+        - $ref: '#/components/parameters/gweui'
+
+      responses:
+        403:
+          description: Not enough permissions (only from tier 2)
+        500:
+          description: Internal error
+        200:
+          description: Success, paged logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: number
+                    description: The amount of registers in the response
+                    example: 15
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ts:
+                          type: string
+                          format: date
+                          description: Log date
+                          example: '2017-07-31 10:15:27.341Z'
+                        sev:
+                          type: number
+                          description: Severity enumeration value
+                          example: 6
+                        src:
+                          type: string
+                          description: Log source ID
+                          example: 'COR'
+                        evt:
+                          type: string
+                          description: Log event name
+                          example: 'DATA_DOWN'
+                        msg:
+                          type: string
+                          description: Log message
+                          example: 'Server started succesfully'
+                        metadata:
+                          type: object
+                          description: Log metadata properties
+                          properties:
+                            gweui:
+                              type: string
+                              description: gateway identifier
+                              example: 7076FFFFFF020796
+                            instance:
+                              type: string
+                              description: server instance
+                              example: nwk-1
+
+  /1/nwk/gateway/{gweui}/gps:
+    get:
+      tags:
+        - gateway
+      summary: Retrieve paged GPS values
+
+      parameters:
+        - $ref: '#/components/parameters/gweui'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/filter'
+        - $ref: '#/components/parameters/sort'
+      responses:
+        403:
+          description: Not enough permissions on the gateway
+        400:
+          description: Invalid request
+        500:
+          description: Internal error
+        200:
+          description: Success, GPS paged values
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: number
+                    description: The amount of GPS values by filter used
+                    example: 15
+                  gps:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          format: date
+                          example: '2017-07-31T10:15:27.341Z'
+                        lat:
+                          type: number
+                          description: latitude decimal
+                          example: 0
+                        lon:
+                          type: number
+                          description: longitude decimal
+                          example: 0
+                        alt:
+                          type: number
+                          description: altitude (meters)
+                          example: 0
+                        satUsed:
+                          type: number
+                          description: index in 'satList'
+                          example: 1
+                        satList:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: number
+                                description: SV PRN number
+                                example: 30
+                              ele:
+                                type: number
+                                description: Elevation, in degrees, 90° maximum
+                                example: 0
+                              azi:
+                                type: number
+                                description: Azimuth, degrees from True North, 000° through 359°
+                                example: 0
+                              snr:
+                                type: number
+                                description: SNR, 00 through 99 dB (null when not tracking)
+                                example: 15
+  /1/nwk/gateway/{gweui}/alerts:
+    get:
+      tags:
+        - gateway
+      summary: Get history of generated gateway alerts
+
+      parameters:
+        - $ref: '#/components/parameters/gweui'
+        - in: query
+          name: filetype
+          description: Download alerts history in 'csv' or 'json' format. Pagination will be disabled.
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/filter'
+        - $ref: '#/components/parameters/sort'
+      responses:
+        400:
+          description: Invalid request
+        200:
+          description: Gateway paged alerts when 'filetype' parameter is not used
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: number
+                    description: The amount of alerts
+                    example: 15
+                  alerts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ts:
+                          type: string
+                          format: date
+                          description: Alert creation date
+                          example: '2018-03-20T10:00:00.000Z'
+                        alertId:
+                          type: number
+                          description: Alert identifier
+                          example: 2
+                        alert:
+                          type: string
+                          description: Alert message sent
+                          example: Gateway "000800FFFF4A1460" EUI=000800FFFF4A1465 is now offline
+                        seen:
+                          type: boolean
+                          description: Alert acknowledgement status
+                          example: false
+  /1/nwk/gateway/{gweui}/sysinfo:
+    get:
+      tags:
+        - gateway
+      summary: Get system history
+
+      parameters:
+        - $ref: '#/components/parameters/gweui'
+        - $ref: '#/components/parameters/filter'
+        - $ref: '#/components/parameters/sort'
+      responses:
+        400:
+          description: Invalid request
+        200:
+          description: success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    _id:
+                      type: string
+                      description: record identifier
+                      example: 5d15f3bc05a24806509162c0
+                    gweui:
+                      type: string
+                      description: gateway identifier
+                      example: 000800FFFF4A2889
+                    date:
+                      type: string
+                      description: date time
+                      example: 2019-06-28T11:02:20.069Z
+                    storage:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          free:
+                            type: number
+                            description: free storage memory
+                            example: 136314880
+                          size:
+                            type: number
+                            description: total storage memory
+                            example: 243269632
+                          folder:
+                            type: string
+                            description: folder on witch stat has been done
+                            example: unknown
+                    ramFree:
+                      type: number
+                      description: ram free space
+                      example: 197525504
+                    ramSize:
+                      type: number
+                      description: ram total space size
+                      example: 259964928
+                    loads:
+                      type: array
+                      description: normal linux loads average 1 5 15
+                      items:
+                        type: number
+                        example: 0.27
+                    upTime:
+                      type: number
+                      description: uptime in unix time
+                      example: 849078
+                    cpus:
+                      type: number
+                      description: number of CPUs
+                      example: 1
+  /1/nwk/gateway/{gweui}/software/disable-auto-update:
+    put:
+      tags:
+        - gateway
+      summary: Disable gateway binary automatic updates from Network server for each new version.
+
+      parameters:
+        - $ref: '#/components/parameters/gweui'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: boolean
+      responses:
+        403:
+          description: Not enough permissions on the gateway
+        500:
+          description: Internal error
+        204:
+          description: Success, automatic updates disabled
+  /1/nwk/gateway/{gweui}/software/enable-auto-update:
+    put:
+      tags:
+        - gateway
+      summary:
+        Enable gateway binary automatic updates from Network server for each
+        new version. That should be default action for any gateway.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: boolean
+      parameters:
+        - $ref: '#/components/parameters/gweui'
+
+      responses:
+        403:
+          description: Not enough permissions on the gateway
+        500:
+          description: Internal error
+        204:
+          description: Success, automatic updates enabled
+  /1/nwk/gateway/{gweui}/software/allow-next-update:
+    put:
+      tags:
+        - gateway
+      summary:
+        Enable to update gateway binary when a new version is available in the
+        Network Server for its model. Only available when gateway automatic updates
+        are disabled by default. After apply the update, any new available update
+        will not be applied as long as the gateway automatic updates are disabled
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: boolean
+      parameters:
+        - $ref: '#/components/parameters/gweui'
+
+      responses:
+        403:
+          description: Not enough permissions on the gateway
+        400:
+          description: Invalid request. Gateway automatic updates enabled.
+        500:
+          description: Internal error
+        204:
+          description: Success, automatic updates enabled
+    delete:
+      tags:
+        - gateway
+      summary:
+        Disable to update gateway binary when a new version is available in the
+        Network Server for its model. Only available when gateway automatic updates
+        are disabled by default.
+
+      parameters:
+        - $ref: '#/components/parameters/gweui'
+
+      responses:
+        403:
+          description: Not enough permissions on the gateway
+        400:
+          description: Invalid request. Gateway automatic updates enabled.
+        500:
+          description: Internal error
+        204:
+          description: Success, automatic updates enabled
+
+  /1/nwk/status:
+    get:
+      tags:
+        - system
+      summary:
+        This is a dinamic endpoint. It depends if an authorization is provided.
+        If a valid authorization (sessionId or bearer) is sent,
+        all fields described in this documentation
+        will be received. If there is no authorization in the request, the response
+        comes only with mapsKey and serverType.
+
+      responses:
+        200:
+          description: Success, server status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  socketLocation:
+                    type: string
+                    description: root path of socket
+                    example: /
+                  serverCountry:
+                    type: string
+                    description: country of the server
+                    example: SM
+                  serverCity:
+                    type: string
+                    description: city of the server
+                    example: San Marino
+                  gatewayCertificateRequired:
+                    type: string
+                    description: flag that indicates the requirement of the gateway certificate in the server
+                    example: MANDATORY
+                  sshTunnelEnabled:
+                    type: boolean
+                    description: sshtunnel is enabled
+                    example: false
+                  internetAccess:
+                    type: boolean
+                    description: server has internet access
+                    example: true
+                  multicastEnabled:
+                    type: boolean
+                    description: multicast is enabled
+                    example: true
+                  version:
+                    type: string
+                    description: software version
+                    example: 5.0.12-20190626
+                  gatewayUrl:
+                    type: string
+                    description: server url
+                    example: dev-priv.loriot.io
+                  gatewayUrlAuth:
+                    type: string
+                    description: server authentication url
+                    example: dev-sec.loriot.io
+                  serverType:
+                    type: string
+                    description: server type
+                    example: private
+                  mapsKey:
+                    type: string
+                    description: google maps key
+                    example: AIzaSyDisTIsH8nXXnU62a-P4y1p9EC2tdov3OI
+
+  /1/nwk/channelplans/{LORAGWVERSION}/regions:
+    get:
+      tags:
+        - gateway channel plans
+      summary: Retrieve regions channels
+      parameters:
+        - in: path
+          name: 'LORAGWVERSION'
+          description: LoRaWAN gateway version (1, 2)
+          required: true
+          schema:
+            type: number
+            example: 2
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success, received channel regions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    _id:
+                      type: string
+                      description: Channel region identifier
+                      example: CN470-510
+                    gwchannels:
+                      type: array
+                      items:
+                        type: string
+                        example: CN473
+  /1/nwk/channelplans/{LORAGWVERSION}/{BANDNAME}/channels:
+    get:
+      tags:
+        - gateway channel plans
+      summary: Retrieve channel plan for a bandname
+
+      parameters:
+        - in: path
+          name: 'LORAGWVERSION'
+          description: LoRaWAN gateway version (1, 2)
+          required: true
+          schema:
+            type: number
+            example: 2
+        - in: path
+          name: 'BANDNAME'
+          description: Band name
+          required: true
+          schema:
+            type: string
+            example: CN470
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: Success, receive channel plan
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    bw:
+                      type: number
+                      description: bandwith
+                      example: 125000
+                    freq:
+                      type: number
+                      description: frequency
+                      example: 472700000
+                    mod:
+                      type: string
+                      description: mode
+                      example: "MultiSF"
+                    radio:
+                      type: number
+                      description: radio configuration
+                      example: 1
+                    rx2:
+                      type: object
+                      properties:
+                        freq:
+                          type: number
+                          description: RX2 frequency
+                          example: 471300000
+                        delay:
+                          type: number
+                          description: RX2 delay
+                          example: 2000000
+                        datr:
+                          type: string
+                          description: RX2 datarate
+                          example: "SF9BW125"
+  /1/nwk/channelplans/{LORAGWVERSION}/{BANDNAME}/rx2:
+    get:
+      tags:
+        - gateway channel plans
+      summary: Retrieve receive window RX2 for a band name
+
+      parameters:
+        - in: path
+          name: 'LORAGWVERSION'
+          description: LoRaWAN gateway version (1, 2)
+          required: true
+          schema:
+            type: number
+            example: 2
+        - in: path
+          name: 'BANDNAME'
+          description: Band name
+          required: true
+          schema:
+            type: string
+            example: CN470
+      responses:
+        403:
+          description: Not enough permissions
+        500:
+          description: Internal error
+        200:
+          description: 'Success, receive window 2 RX2'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  freq:
+                    type: number
+                    description: RX2 frequency
+                    example: 869525000
+                  delay:
+                    type: number
+                    description: RX2 delay
+                    example: 2000000
+                  datr:
+                    type: string
+                    description: RX2 datarate
+                    example: 'SF12BW125'
+
+components:
+  parameters:
+    TAGNAME:
+      in: path
+      name: TAGNAME
+      schema:
+        type: string
+      required: true
+      description: Tag name
+    mcastEUI:
+      in: path
+      name: mcastEUI
+      schema:
+        type: string
+      required: true
+      description: EUI of the multicast device
+    FREQ:
+      name: FREQ
+      in: path
+      required: true
+      description: Amount and resolution of data returned
+      schema:
+        type: string
+        enum:
+          - monthly
+          - daily
+          - hourly
+        example: "monthly"
+    roamingid:
+      name: roamingid
+      in: path
+      description: Gateway Network Roaming ID
+      required: true
+      schema:
+        type: string
+    targetroamingid:
+      name: targetroamingid
+      in: path
+      description: Gateway Network Roaming ID Gateway's move target
+      required: true
+      schema:
+        type: string
+    gweui:
+      name: gweui
+      in: path
+      description: Gateway EUI
+      required: true
+      schema:
+        type: string
+    DEVEUI:
+      name: DEVEUI
+      in: path
+      description: Device EUI
+      required: true
+      schema:
+        type: string
+    OUTPUTID:
+      name: OUTPUTID
+      in: path
+      description: Data Output ID to remove
+      required: true
+      schema:
+        type: string
+    TOKEN:
+      name: TOKEN
+      in: path
+      description: Application Token
+      required: true
+      schema:
+        type: string
+    APPID:
+      name: APPID
+      in: path
+      description: Application hexadecimal (uppercase) ID
+      required: true
+      schema:
+        type: string
+    page:
+      name: page
+      in: query
+      required: false
+      description: For server-side pagination purpose, this is the page number for the response
+      schema:
+        type: number
+    perPage:
+      name: perPage
+      in: query
+      description: Amount of registers that the API should show in the response
+      required: false
+      schema:
+        type: number
+        maximum: 100
+    filter:
+      name: filter
+      in: query
+      description: Filter property values
+      required: false
+      schema:
+        type: string
+    sort:
+      name: sort
+      in: query
+      description: The parameter that should be used as order by
+      required: false
+      schema:
+        type: string
+
+  schemas:
+    Location:
+      type: object
+      required:
+        - lat
+        - lon
+      properties:
+        address:
+          type:  string
+          description: Gateway address
+          example: 'Langstrasse 104-106'
+        city:
+          type: string
+          description: Gateway city
+          example: 'Zürich, Switzerland'
+        zip:
+          type: string
+          description: Gateway ZIP
+          example: '8004'
+        country:
+          type: string
+          description: ISO country code
+          example: 'CH'
+        lat:
+          type: number
+          description: Gateway GPS latituted for offline installations
+          example: 47.3786471
+        lon:
+          type: number
+          description: Gateway GPS longitude for offline installations
+          example: 8.5272487
+        baidu:
+          type: string
+          description: Chinese address
+          example: 河东区津塘路互助南里18号楼底商(近二宫公园)
+    LastDataDevice:
+      type: object
+      properties:
+        ack:
+          type: boolean
+          description: acknowledgement
+          example: false
+        bat:
+          type: number
+          description: battery (0 to 255)
+          example: 202
+        cmd:
+          type: string
+          description: last command
+          example: "gw"
+        data:
+          type: string
+          description: last data received
+          example: "ae1cda090eb8be"
+        dr:
+          type: string
+          description: datarate
+          example: "SF11 BW125 4/5"
+        fcnt:
+          type: number
+          description: framecounter
+          example: 254
+        freq:
+          type: number
+          description: frequency
+          example: 868100000
+        port:
+          type: number
+          description: comunication port
+          example: 1
+        seqno:
+          type: number
+          description: downlink sequence number
+          example: 1697
+        sessionKeyId:
+          type: string
+          description: Session key ID
+          example: null
+        toa:
+          type: number
+          description: time on air
+          example: 0
+        ts:
+          type: number
+          description: timestamp
+          example: 1560949481904
+        _id:
+          type: string
+          example: "5d0a32ea5476701449cdfa9f"
+        gws:
+          type: array
+          items:
+            type: object
+            properties:
+              rssi:
+                type: number
+                description: Received Signal Strength Indicator
+                example: -50
+              snr:
+                type: number
+                description: signal noise ratio
+                example: 12.5
+              ts:
+                type: number
+                description: timestamp
+                example: 1560949481904
+              tmms:
+                type: number
+                description: GPS time in milliseconds
+                example: null
+              time:
+                type: string
+                description: date and time
+                example: "2019-06-19T13:04:46.847435Z"
+    LastData:
+      type: object
+      properties:
+        EUI:
+          type: string
+          description: unique device identifier
+          example: "BE7A00000000066E"
+        ack:
+          type: boolean
+          description: acknowledgement
+          example: false
+        bat:
+          type: number
+          description: battery (0 to 255)
+          example: 202
+        cmd:
+          type: string
+          description: last command
+          example: "gw"
+        data:
+          type: string
+          description: last data received
+          example: "ae1cda090eb8be"
+        dr:
+          type: string
+          description: datarate
+          example: "SF11 BW125 4/5"
+        fcnt:
+          type: number
+          description: framecounter
+          example: 254
+        freq:
+          type: number
+          description: frequency
+          example: 868100000
+        port:
+          type: number
+          description: comunication port
+          example: 1
+        seqno:
+          type: number
+          description: downlink sequence number
+          example: 1697
+        sessionKeyId:
+          type: string
+          description: Session key ID
+          example: null
+        toa:
+          type: number
+          description: time on air
+          example: 0
+        ts:
+          type: number
+          description: timestamp
+          example: 1560949481904
+        _id:
+          type: string
+          description: identifier
+          example: "5d0a32ea5476701449cdfa9f"
+        gws:
+          type: array
+          items:
+            type: object
+            properties:
+              rssi:
+                type: number
+                description: Received Signal Strength Indicator
+                example: -50
+              snr:
+                type: number
+                description: signal noise ratio
+                example: 12.5
+              ts:
+                type: number
+                description: timestamp
+                example: 1560949481904
+              tmms:
+                type: number
+                description: GPS time in milliseconds
+                example: null
+              time:
+                type: string
+                description: date and time
+                example: "2019-06-19T13:04:46.847435Z"
+    UpDownLink:
+      type: object
+      properties:
+        noPayload:
+          type: object
+          properties:
+            confirmed:
+              type: number
+              example: 0
+            unconfirmed:
+              type: number
+              example: 0
+        payload:
+          type: object
+          properties:
+            confirmed:
+              type: number
+              example: 0
+            unconfirmed:
+              type: number
+              example: 0
+    Mcast:
+      type: object
+      required:
+        - mcasteui
+        - devaddr
+        - freq
+        - datr
+        - appskey
+        - nwkskey
+        - preload
+        - seqdn
+      properties:
+        mcasteui:
+          type: string
+          description: Multicast device EUI identifier (hexadecimal)
+        devaddr:
+          type: string
+          description: Multicast devaddr
+        freq:
+          type: number
+          description: Frequency to be used for downlink
+        datr:
+          type: string
+          description: datarate
+        appskey:
+          type: string
+          description: application session key
+          example: 3D3FD7C55786F7401CD18AAF8860370C
+        nwkskey:
+          type: string
+          description: network server key
+          example: F554E4253DB9B02E4F2AE1C88A9EC58F
+        preload:
+          type: number
+          description: Time in advance to send multicast downlink to gateway (milliseconds).
+        seqdn:
+          type: number
+          description: downlink sequence number
+    OutputDetail:
+      type: object
+      properties:
+        howto:
+          type: string
+          description: Detail information in HTML
+          example: '<p>Sign up at <a href="https://mydevices.com/cayenne/signup/" target="blank">myDevices Cayenne</a></p>'
+        location:
+          type: string
+          description: local or third party
+          example: "3rd"
+        mech:
+          type: string
+          description: Output mechanism
+          example: "Delivery through 3rd party cloud service"
+        title:
+          type: string
+          description: output title
+          example: "myDevices Cayenne"
+        _id:
+          type: string
+          description: output identifier
+          example: "mydevices"
+        form:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "url"
+            title:
+              type: string
+              example: "Target URL Template"
+            type:
+              type: string
+              example: "hidden"
+            value:
+              type: string
+              example: "wss://{SERVER}/app?token={token}"
+    PaginationApps:
+      type: object
+      properties:
+        page:
+          type: number
+          description: Page number for the pagination response
+          example: 1
+        perPage:
+          type: number
+          description: Amount of applications to retrieve per page
+          example: 10
+        total:
+          type: number
+          description: Amount of applications to iterate using pagination
+          example: 18
+        apps:
+          type: array
+          items:
+            $ref: '#/components/schemas/Application'
+    PaginationDevices:
+      type: object
+      properties:
+        page:
+          type: number
+          description: Page number for the pagination response
+          example: 1
+        perPage:
+          type: number
+          description: Amount of applications to retrieve per page
+          example: 10
+        total:
+          type: number
+          description: Amount of applications to iterate using pagination
+          example: 18
+        devices:
+          type: array
+          items:
+            $ref: '#/components/schemas/Device'
+    UserEmailNotification:
+      type: object
+      properties:
+        emailNotification:
+          type: string
+          description: User email notification
+          example: 'notification@loriot.io'
+    UserWebhookNotification:
+      type: object
+      properties:
+        webhookNotification:
+          type: string
+          description: User webhook URL notification end-point
+          example: 'http://alerts.gateway.foo.net/bar'
+    mcastdev:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Multicast device EUI identifier (hexadecimal)
+          example: 6F6D4AEFED7B61C8
+        devaddr:
+          type: string
+          description: Multicast devaddr
+          example: B1AAD505
+        freq:
+          type: number
+          description: Frequency to be used for downlink
+          example: 1
+        datr:
+          type: string
+          description: TODO
+          example: 'FSK50000'
+        appskey:
+          type: string
+          description: application session key
+          example: 3D3FD7C55786F7401CD18AAF8860370C
+        nwkskey:
+          type: string
+          description: network server key
+          example: F554E4253DB9B02E4F2AE1C88A9EC58F
+        preload:
+          type: number
+          description: Time in advance to send multicast downlink to gateway (milliseconds).
+          example: 600000
+        seqdn:
+          type: number
+          description: downlink sequence counter
+          example: 1
+    Model:
+      type: object
+      properties:
+        base:
+          type: string
+          description: base / manufacturer of the gateway
+          example: ursalink
+        basename:
+          type: string
+          description: user friendly version of base
+          example: Ursalink
+        description:
+          type: string
+          description: Gateway description with HTML formatting
+          example: <p>Aartesys AarteWAN LoRa Gateway is supported in beta stage.</p>
+        bus:
+          type: array
+          description: TODO
+          items:
+            type: string
+            example: SPI
+        card:
+          type: array
+          description: TODO
+          items:
+            type: string
+            example: 0
+        concentrator:
+          type: array
+          description: TODO
+          items:
+            type: string
+            example: aartewan
+    Gateway:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Gateway EUI ID
+          example: 'A5AEE3B4FB9D8376'
+        MAC:
+          type: string
+          description: Gateway MAC
+          example: '70:76:FF:01:03:84'
+        EUI:
+          type: string
+          description: Gateway EUI
+          example: '70-76-FF-FF-FF-01-03-84'
+        base:
+          type: string
+          description: base / manufacturer of the gateway
+          example: 'linux'
+        model:
+          type: string
+          description: model of the gateway
+          example: 'x64'
+        location:
+          $ref: '#/components/schemas/Location'
+        connected:
+          type: boolean
+          description: Gateway connection status
+          example: true
+        radioband:
+          type: string
+          description: gateway channel ID
+          example: 'EU868'
+        bus:
+          type: string
+          description: bus used to connect the concentrator
+          example: 'USB'
+        concentrator:
+          type: string
+          description: model of the concentrator
+          example: 'sx1301_ref'
+        card:
+          type: number
+          description: ID of the concentrator / bus / card
+          example: 0
+        lastData:
+          type: string
+          format: date-time
+          description: date and time of last data
+          example: '2016-11-21T16:34:42.888Z'
+        lastStarted:
+          type: string
+          format: date-time
+          description: Date of last gateway start of the binary / full reload
+          example: '2016-11-21T12:56:54.126Z'
+        lastPong:
+          type: string
+          format: timestamp
+          description: last keep-alive timestamp
+          example: 1479746091279
+        version:
+          type: string
+          description: version reported by the gateway
+          example: 'DEV.435'
+        rtt:
+          type: number
+          description: |
+            latency (round trip time) between Network Server and Gateway from
+            WebSocket protocol
+          example: 53
+        title:
+          type: string
+          description: custom gateway title updated by user
+          example: 'Kerlink V2'
+        basename:
+          type: string
+          description: user friendly version of base
+          example: Ursalink
+        modelname:
+          type: string
+          description: user friendly version of model
+          example: Industrial Router IR910
+        concentratorname:
+          type: string
+          description: user friendly version of concentrator
+          example: UG87, 868 MHz
+        alerts:
+          type: boolean
+          description: flag enable / disable alerts for this gateway
+          example: false
+        createdAt:
+          type: string
+          description: Creation date
+          example: '2018-02-09T07:47:28.173Z'
+        visibility:
+          type: string
+          description: visibility of the gateway. Organization wide or only for the user
+          example: "private"
+    GatewayNetwork:
+      properties:
+        _id:
+          type: number
+          description: Gateway Network roaming ID
+          example: 2684354560
+        createdAt:
+          type: string
+          format: date
+          description: Gateway Network creation date
+          example: '2017-09-05T07:45:04.475Z'
+        name:
+          type: string
+          description: custom Gateway Network title name
+          example: 'Kerlink V2'
+        address:
+          type:  string
+          description: Gateway address
+          example: 'Langstrasse 104-106'
+        city:
+          type: string
+          description: Gateway city
+          example: 'Zürich, Switzerland'
+        zip:
+          type: string
+          description: Gateway ZIP
+          example: '8004'
+        country:
+          type: string
+          description: ISO country code
+          example: 'CH'
+        lat:
+          type: number
+          description: Gateway GPS lat
+          example: 47.3786471
+        lon:
+          type: number
+          description: Gateway GPS lon
+          example: 8.5272487
+        gateways:
+          type: number
+          description: Amount of gateways registered in network
+          example: 1
+        visibility:
+          type: string
+          description: set the visibility of the network. "Vivible only to me" or "Visible to all organization users"
+          example: private
+    devicetag:
+      properties:
+        name:
+          type: string
+          description: Tag name
+          example: 'foo'
+        createdAt:
+          type: string
+          format: date
+          description: Tag creation date
+          example: '2017-09-11T07:32:56.251Z'
+        description:
+          type: string
+          description: Tag description
+          example: 'my cool tag'
+        devices:
+          type: array
+          description: Device EUI list
+          items:
+            type: string
+          example:
+            - '70A36F60EC83D9AC'
+            - '2F118F0EC248B0F0'
+    deviceMacCommandPaged:
+      type: object
+      properties:
+        macCommands:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                description: MAC command name
+                example: 'DevStatusAns'
+              date:
+                type: string
+                format: date
+                description: MAC command sent/received date
+                example: '2018-01-03T11:58:35.305Z'
+              frameOptions:
+                type: string
+                format: hexadecimal
+                description: MAC command raw frame options
+                example: '332deb3960'
+              sanitizedFrameOptions:
+                type: object
+                description: MAC command sanitized frame options
+        total:
+          type: number
+          description: number of MAC commands found
+          example: 1
+    User:
+      description: User information
+      type: object
+      properties:
+        alerts:
+          type: boolean
+          description: notifcations alerts configuration
+          example: false
+        devlimit:
+          type: number
+          description: devices limit for this user
+          example: 100
+        email:
+          type: string
+          description: email address
+          example: "fdq@universidadalcala.foo"
+        first_name:
+          type: string
+          description: first name or forename
+          example: "Francisco"
+        gwlimit:
+          type: number
+          description: gateways limit for this user
+          example: 100
+        hascard:
+          type: boolean
+          description: the user has a credit card in his account
+          example: true
+        last_name:
+          type: string
+          description: last name or surname
+          example: "De Quevedo"
+        level:
+          type: number
+          description: level of the user for admin rights (1 to 100)
+          example: 50
+        mcastdevlimit:
+          type: number
+          description: multicast devices limit by user
+          example: 10
+        organizationRole:
+          type: string
+          description: Organization role of the user
+          example: "organization-admin"
+        organizationUuid:
+          type: string
+          description: Organization unique identifier
+          example: "57f47256-344f-4b9h-a146-8a27210d4e99"
+        outputLimit:
+          type: number
+          description: max number ouputs allowed
+          example: 3
+        tier:
+          type: number
+          description: Tier of the user
+          example: 2
+    Tier:
+      description: Tier of the user
+      type: object
+      properties:
+        applimit:
+          type: string
+          description: Informative field for web usage
+          example: "Professional Account tier has custom application number limits."
+        features:
+          type: array
+          items:
+            type: object
+            properties:
+              0:
+                type: string
+                description: Informative field for web usage
+                example: "Custom number of gateways"
+              1:
+                type: string
+                description: Informative field for web usage
+                example: "Custom number of devices"
+              2:
+                type: string
+                description: Informative field for web usage
+                example: "Technical support per contract"
+        info:
+          type: string
+          description: wellcome message in HTML
+          example: "<p><strong>Welcome to LORIOT.io Professional Account!</strong></p>"
+        title:
+          type: string
+          description: type of account
+          example: "Professional Account"
+        _id:
+          type: string
+          description: numeric value of the tier
+          example: 2
+    Device:
+      type: object
+      properties:
+        _id:
+          description: Device EUI
+          type: string
+          example: "0000000000005593"
+        devaddr:
+          description: Device address
+          type: string
+          example: "A803A7E5"
+        seqno:
+          description: uplink sequence number
+          type: number
+          example: 128570
+        seqdn:
+          description: downlink sequence number
+          type: number
+          example: 1495
+        seqq:
+          description: queued sequence number
+          type: number
+          example: 1495
+        adrCnt:
+          description: number of frames since last ADR
+          type: number
+          example: 8
+        subscription:
+          type: number
+          description: Subscription type (suspended status)
+          example: 2
+        txrate:
+          type: number
+          example: null
+        rxrate:
+          type: number
+          example: 144
+        devclass:
+          type: string
+          description: Device LoRaWAN class type
+          example: "A"
+        rxw:
+          description: Receive window to be used after uplink transmission
+          type: number
+          example: 1
+        dutycycle:
+          description: Device duty cycle
+          type: number
+          example: 0
+        adr:
+          description: Enable/disable adaptative data rate (ADR) for device
+          type: boolean
+          example: true
+        adrMin:
+          description: Minimum data rate to use for device when ADR is enabled
+          type: number
+          example: 0
+        adrMax:
+          description: Maximum data rate to use for device when ADR is enabled
+          type: number
+          example: 7
+        adrFix:
+          type: number
+          description: Fixed value for data rate when ADR is enabled
+          example: 5
+        seqrelax:
+          type: boolean
+          description: Flag to relax or strict uplink seqno check
+          example: false
+        seqdnreset:
+          type: boolean
+          description: Flag to reset sequence downlink when old uplink seqno received
+          example: true
+        nonce:
+          description: Random nonce number received from last JoinReq message
+          type: number
+          example: 2642
+        lastJoin:
+          type: string
+          format: date
+          description: Date from last successful JoinReq
+          example: "2017-01-31T16:04:08.819Z"
+        lastSeen:
+          type: number
+          format: timestamp
+          description: Last device seen date
+          example: 1525247423650
+        rssi:
+          description: Received Signal Strength Indicator
+          type: number
+          example: -97.7421875
+        snr:
+          description: Signal Noise Ratio
+          type: number
+          example: 13.40625
+        freq:
+          description: Frequency of last frame
+          type: number
+          example: 868300000
+        sf:
+          description: Spreading Factor of last frame
+          type: number
+          example: 12
+        bw:
+          description: Bandwidth of last frame
+          type: number
+          example: 125
+        gw:
+          description: Gateway EUI of last frame received
+          type: string
+          example: "A510C7FFFFEAE9AB"
+        appeui:
+          type: string
+          description: |
+            Global application ID in IEEE EUI64 address space that uniquely identifies
+            the application provider (i.e., owner) of the end-device.
+          example: "BE01000000000003"
+        lastDevStatusSeen:
+          type: string
+          format: date
+          description: Date of last time DevStatus MAC command received
+          example: "2018-02-21T08:49:14.472Z"
+        bat:
+          type: number
+          description: Battery value encoded to a byte from DevStatusAns command
+          example: 250
+        devSnr:
+          type: number
+          description: |
+            Device demulation signal-to-noise ratio in Db to the nearest
+            integer value for the last successfully received DevStatusReq command
+          example: -26
+        lorawan:
+          description: Device LoRaWAN standard used by device
+          type: object
+          properties:
+            major:
+              type: number
+              description: Major version number of the LoRaWAN standard
+              example: 1
+            minor:
+              type: number
+              description: Minor version of the LoRaWAN standard
+              example: 0
+            revision:
+              type: string
+              description: Revision of the LoRaWAN standard (typically regional parameters)
+              example: "2b"
+    Application:
+      type: object
+      properties:
+        _id:
+          description: Application ID
+          type: number
+          example: 3187736576
+        name:
+          description: Application name
+          type: string
+          example: "WebSocket Sample"
+        created:
+          description: Creation date
+          type: string
+          format: date
+          example: "2016-10-18T09:59:26.139Z"
+        devices:
+          description: Amount of devices registered for the application
+          type: number
+          example: 5
+        deviceLimit:
+          description: Limit of devices which can be registered
+          type: number
+          example: 10
+        output:
+          description: Data Output name to be used to publish LoRaWAN information
+          type: string
+          example: "websocket"
+        osetup:
+          description: Internal configuration for selected Data Output
+          type: object
+        overbosity:
+          description: Amount of verbosity for LoRaWAN information
+          type: string
+          enum:
+            - full
+            - min
+          example: "full"
+        ogwinfo:
+          description: Gateway information feed verbosity
+          type: string
+          enum:
+            - 'none'
+            - 'rssi'
+            - 'gwid'
+            - 'full'
+          example: "full"
+        suspended:
+          description: Suspended application status
+          type: boolean
+          example: false
+        orx:
+          description: Enable/disable RX messages output
+          type: boolean
+          example: false
+        appeui:
+          description: Application EUI
+          type: string
+          format: hex
+          example: "BE01000000000003"
+        joinServerId:
+          description: Join Server EUI to handle JoinReq messages
+          type: string
+          format: hex
+          example: "ºC0C0C0C0C0C0C0D0"
+        canotaa:
+          description: Flag to enable/disable usage of OTAA JoinReq messages
+          type: boolean
+          example: true
+        publishAppSKey:
+          description: Flag to publish AppSKey after successful JoinReq
+          type: boolean
+          example: false
+        clientsLimit:
+          description: Maximum number of concurrent connections to Data Output
+          type: number
+          example: 10
+        customPropertiesUplinkDataMessage:
+          type: boolean
+          description: >
+            Status flag to enable/disable sending custom properties to be published\
+            for each uplink data message
+          default: false
+    AppDataOutputType:
+      type: object
+      properties:
+        _id:
+          description: Data Output ID
+          type: string
+          example: websocket
+        form:
+          description: Form properties to be displayed in front-end
+          type: array
+          items:
+            type: object
+        howto:
+          description: Setup instructions, long texts
+          type: string
+          example: |
+            Point your browser or library to the WebSocket URL and listen for
+            incoming messages
+        mech:
+          type: string
+          example: Listen and wait
+        title:
+          description: Title
+          type: string
+          example: WebSocket
+        location:
+          description: Data Output origin (local from LORIOT or from 3rd party)
+          type: string
+          example: local
+
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: 'Value should have this format: "Session 12345678-1324-1324-1234-123456789012"'
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Insert here an API Key generated in Account > Apikeys.
+
+security:
+  - sessionAuth: []
+  - bearerAuth: []
